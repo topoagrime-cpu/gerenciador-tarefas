@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Gerenciador de Tarefas</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; background: #B0E0E6; color: #333; transition: background 0.3s, color 0.3s; }
+    #header-container { position: sticky; top: 0; background: inherit; z-index: 1000; padding: 20px 20px 10px 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    .dark #header-container { box-shadow: 0 2px 5px rgba(255,255,255,0.1); }
+    #main-content { padding: 20px; }
+    h1 { text-align: center; margin-top: 0; }
+    .controls, .task-form, .search-box, .filter-sort-box { margin-bottom: 15px; text-align: center; }
+    input, textarea, select { padding: 5px; margin: 5px; border: 1px solid #ccc; background: #fff; color: #333; border-radius: 4px; }
+    button { padding: 5px 8px; margin: 3px; cursor: pointer; border: none; border-radius: 4px; background: #007bff; color: white; }
+    button:hover { background: #0056b3; }
+    .cards-container { display: flex; flex-wrap: wrap; gap: 15px; justify-content: flex-start; }
+    .task { flex: 1 1 calc(33.33% - 20px); min-width: 250px; max-width: 350px; padding: 12px; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); font-size: 14px; background: #ffffff; }
+    .task h3 { margin: 0 0 5px 0; }
+    .status { font-weight: bold; margin: 5px 0; }
+    .actions { margin-top: 8px; }
+    .actions button { padding: 4px 6px; font-size: 13px; background: #6c757d; color: white; }
+    .actions button:hover { background: #5a6268; }
+    .log { font-size: 11px; margin-top: 6px; background: #e9ecef; padding: 5px; border-radius: 4px; max-height: 70px; overflow-y: auto; color: #333; }
+    .kanban { display: flex; gap: 15px; overflow-x: auto; padding-bottom: 10px; }
+    .kanban-column { flex: 1; min-width: 200px; background: #ffffff; border-radius: 6px; padding: 10px; box-shadow: 0 0 5px rgba(0,0,0,0.05); }
+    .kanban-column h3 { text-align: center; color: #555; }
+    .kanban .task { max-width: 100%; flex: 1 1 100%; margin-bottom: 10px; }
+    .kanban .task .log { display: none; } 
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #fff; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; font-size: 13px; }
+    th { background: #e9ecef; color: #333; }
+    td select { width: 100%; }
+    th.sortable { cursor: pointer; user-select: none; }
+    th.sortable:hover { background: #dcdcdc; }
+    th .sort-arrow { float: right; color: #888; }
+    .Criado { background: #e6f7ff; border-left: 5px solid #66b8ff; } .Andamento { background: #fffbe6; border-left: 5px solid #ffc107; } .Parado { background: #fae6ff; border-left: 5px solid #a666d5; } .Adiado { background: #e6ffed; border-left: 5px solid #28a745; } .Cancelado { background: #ffe6e6; border-left: 5px solid #dc3545; } .Concluído { background: #d4edff; border-left: 5px solid #007bff; }
+    td.Criado { background-color: #e6f7ff; } td.Andamento { background-color: #fffbe6; } td.Parado { background-color: #fae6ff; } td.Adiado { background-color: #e6ffed; } td.Cancelado { background-color: #ffe6e6; } td.Concluído { background-color: #d4edff; }
+    .dark { background: #2e2e2e; color: #f1f1f1; }
+    .dark input, .dark textarea, .dark select { background: #444; color: #f1f1f1; border: 1px solid #666; }
+    .dark button { background: #5a5a5a; color: #f1f1f1; } .dark button:hover { background: #6c757d; }
+    .dark .kanban-column { background: #3a3a3a; } .dark table { border-color: #555; background: #383838;}
+    .dark th { background: #444; color: #f1f1f1; } .dark th.sortable:hover { background: #555; }
+    .dark td { background: #383838; border-color: #555; } .dark .task { background: #383838; }
+    .dark .log { background: #444; color: #f1f1f1; } .dark .actions button { background: #4a4a4a; }
+    .dark .actions button:hover { background: #5a5a5a; }
+    .dark .Criado, .dark td.Criado { background: #3a4a5a; border-left-color: #66b8ff; } .dark .Andamento, .dark td.Andamento { background: #5e5e32; border-left-color: #ffc107; } .dark .Parado, .dark td.Parado { background: #5c3a6d; border-left-color: #a666d5; } .dark .Adiado, .dark td.Adiado { background: #3d5c3d; border-left-color: #28a745; } .dark .Cancelado, .dark td.Cancelado { background: #6d3a3a; border-left-color: #dc3545; } .dark .Concluído, .dark td.Concluído { background: #34506d; border-left-color: #007bff; }
+    #dashboard-view { padding: 20px; background-color: #e9ecef; }
+    .dark #dashboard-view { background-color: #262626; }
+    .dashboard-stats { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; text-align: center; margin-bottom: 20px; }
+    .stat-card { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); flex-grow: 1; max-width: 200px; min-width: 150px; }
+    .stat-card h3 { margin: 0; color: #888; font-size: 16px; } .stat-card p { margin: 5px 0 0; font-size: 28px; font-weight: bold; }
+    .dark .stat-card { background: #3a3a3a; }
+    .dashboard-charts-container { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; align-items: flex-start; }
+    .dashboard-chart { flex: 1; min-width: 300px; max-width: 500px; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    .dark .dashboard-chart { background: #3a3a3a; }
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 1001; }
+    .modal-content { background: white; padding: 20px; border-radius: 8px; max-width: 80%; max-height: 80%; overflow-y: auto; box-shadow: 0 4px 8px rgba(0,0,0,0.2); color: #333; min-width: 400px; }
+    .dark .modal-content { background: #383838; color: #f1f1f1; }
+  </style>
+</head>
+<body>
+  <div id="header-container">
+    <h1>Gerenciador de Tarefas - Soluções J. Aureliano</h1>
+    <div class="controls">
+      <button id="toggleView" onclick="toggleView()">📌 Modo Cards</button>
+      <button id="toggleTheme" onclick="toggleTheme()">🌙 Modo Escuro</button>
+      <button onclick="exportarParaCSV()">Exportar para CSV</button>
+      <button onclick="document.getElementById('importarCSV').click()">Importar de CSV</button>
+      <input type="file" id="importarCSV" accept=".csv" style="display: none;" onchange="importarDeCSV(event)">
+      <button id="dashboardButton" onclick="toggleDashboardView()">📊 Ver Dashboard</button>
+    </div>
+    <div id="manager-controls">
+      <div class="task-form">
+        <input type="text" id="titulo" placeholder="Título da tarefa">
+        <textarea id="descricao" placeholder="Descrição"></textarea><br>
+        <button onclick="criarTarefa()">Criar Tarefa</button>
+      </div>
+      <div class="filter-sort-box">
+        <input type="text" id="pesquisa" placeholder="Pesquisar tarefa..." onkeyup="render()">
+        <select id="filtroStatus" onchange="render()">
+          <option value="">Filtrar por Status (Todos)</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div id="main-content">
+    <div id="manager-view">
+      <div id="lista"></div>
+    </div>
+
+    <div id="dashboard-view" style="display: none;">
+      <div class="filter-sort-box">
+        <label for="dashboard-ano">Ano:</label>
+        <select id="dashboard-ano" onchange="aplicarFiltrosDashboard()"></select>
+        <label for="dashboard-mes">Mês:</label>
+        <select id="dashboard-mes" onchange="aplicarFiltrosDashboard()">
+            <option value="">Todos os Meses</option>
+        </select>
+      </div>
+      <div class="dashboard-stats" id="dashboard-stats"></div>
+      <div class="dashboard-charts-container">
+        <div class="dashboard-chart">
+            <canvas id="statusChart"></canvas>
+        </div>
+        <div class="dashboard-chart">
+            <canvas id="trendChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="modalOverlay" class="modal-overlay" onclick="fecharModal(event)">
+    <div id="modalContent" class="modal-content" onclick="event.stopPropagation()"></div>
+  </div>
+
+  <script>
+    Chart.register(ChartDataLabels);
+
+    let tarefas = JSON.parse(localStorage.getItem("tarefas")) || [];
+    let viewMode = "cards"; 
+    const statusList = ["Criado", "Andamento", "Parado", "Adiado", "Cancelado", "Concluído"];
+    let sortBy = 'codigo'; 
+    let sortOrder = 'asc';
+    let statusChartInstance = null; 
+    let trendChartInstance = null;
+
+    // --- FUNÇÕES DE LÓGICA PRINCIPAL ---
+    function salvar() { localStorage.setItem("tarefas", JSON.stringify(tarefas)); }
+    function gerarCodigo() { return "T" + Math.floor(Math.random() * 100000); }
+    function getStatusOptions(selectedStatus) { return statusList.map(st => `<option value="${st}" ${st === selectedStatus ? 'selected' : ''}>${st}</option>`).join(''); }
+    function calcularTempoNoStatus(tarefa) { if (!tarefa.historico || tarefa.historico.length === 0) return "N/A"; const ultimoHistorico = tarefa.historico[tarefa.historico.length - 1]; let dataInicio = new Date(ultimoHistorico.data); const agora = new Date(); if (isNaN(dataInicio.getTime())) { if (tarefa.historico.length === 1 && ultimoHistorico.anotacao === "Tarefa criada") { dataInicio = new Date(tarefa.id); } else { return "Erro de data"; } } const diffMs = agora - dataInicio; if (diffMs < 0) return "0s"; const diffSeconds = Math.floor(diffMs / 1000); const diffMinutes = Math.floor(diffSeconds / 60); const diffHours = Math.floor(diffMinutes / 60); const diffDays = Math.floor(diffHours / 24); let tempo = []; if (diffDays > 0) tempo.push(`${diffDays}d`); if (diffHours % 24 > 0) tempo.push(`${diffHours % 24}h`); if (diffMinutes % 60 > 0) tempo.push(`${diffMinutes % 60}m`); if (tempo.length === 0) return `${diffSeconds}s`; return tempo.slice(0, 3).join(" "); }
+    function criarTarefa(){const t=document.getElementById("titulo").value,e=document.getElementById("descricao").value;if(!t)return alert("Informe um título");const o=new Date().toLocaleString(),a={id:Date.now(),codigo:gerarCodigo(),titulo:t,descricao:e,status:"Criado",historico:[{status:"Criado",data:o,anotacao:"Tarefa criada"}]};tarefas.push(a),salvar(),render(),document.getElementById("titulo").value="",document.getElementById("descricao").value=""}
+    function mudarStatus(t,e,o){const a=tarefas.find(o=>o.id===t);if(a){if(null===o)return void render();const n=new Date().toLocaleString(),s=a.status,d=a.status!==e,i=o && o.trim()!=="";if(d||i){a.status=e;let t="";d&&i?t=`Status de ${s} para ${e}. Obs: ${o}`:d?t=`Status alterado de ${s} para ${e}.`:i&&(t=`Observação adicionada: ${o}`),a.historico.push({status:e,data:n,anotacao:t}),salvar(),render()}}}
+    function excluirTarefa(t){confirm("Deseja realmente excluir esta tarefa?")&&(tarefas=tarefas.filter(e=>e.id!==t),salvar(),render())}
+    function classificar(t){sortBy===t?sortOrder="asc"===sortOrder?"desc":"asc":(sortBy=t,sortOrder="asc"),render()}
+    function fecharModal(event){const t=document.getElementById("modalOverlay");(!event||"modalOverlay"===event.target.id)&&(t.style.display="none")}
+    function exibirModal(t,e){const o=document.getElementById("modalOverlay"),a=document.getElementById("modalContent");a.innerHTML=`<h2>${t}</h2>${e}<br><button onclick="fecharModal()">Fechar</button>`,o.style.display="flex"}
+    function visualizarTarefa(t){const e=tarefas.find(e=>e.id===t),o=e.historico.map(t=>`${t.data} - ${t.status} (${t.anotacao||"sem anotação"})`).join("<br>"),a=`<p><strong>Código:</strong> ${e.codigo}</p><p><strong>Título:</strong> ${e.titulo}</p><p><strong>Descrição:</strong> ${e.descricao.replace(/\n/g,"<br>")}</p><p class="status"><strong>Status Atual:</strong> ${e.status}</p><p><strong>Tempo no Status:</strong> ${calcularTempoNoStatus(e)}</p><div class="log"><b>Histórico:</b><br>${o}</div>`;exibirModal(`Visualizar Tarefa: ${e.codigo}`,a)}
+    function abrirEdicao(t){const e=tarefas.find(e=>e.id===t),o=e.historico.map(t=>`${t.data} - ${t.status} (${t.anotacao||"sem anotação"})`).join("<br>"),a=`<form onsubmit="salvarEdicao(event, ${t})"><p><strong>Código:</strong> ${e.codigo}</p><label>Título:</label><br><input type="text" id="editTitulo" value="${e.titulo}" required><br><br><label>Descrição:</label><br><textarea id="editDescricao">${e.descricao}</textarea><br><br><label>Status:</label><select id="editStatus">${getStatusOptions(e.status)}</select><br><br><label>Nova Anotação (Opcional):</label><input type="text" id="editAnotacao" placeholder="Ex: Ajustes..."><br><br><div class="log"><b>Histórico:</b><br>${o}</div><br><button type="submit">Salvar Alterações</button></form>`;exibirModal(`Editar Tarefa: ${e.codigo}`,a)}
+    function salvarEdicao(t,e){t.preventDefault();const o=tarefas.find(t=>t.id===e),a=document.getElementById("editTitulo").value,n=document.getElementById("editDescricao").value,s=document.getElementById("editStatus").value;let d=document.getElementById("editAnotacao").value;const i=o.titulo!==a,c=o.descricao!==n;let l="";const r=[];i&&r.push("Título"),c&&r.push("Descrição"),r.length>0&&(l=`Campos editados: ${r.join(" e ")}.`),!d.trim()&&(i||c)?d=l:l&&d.trim()&&(d=`${l} (Obs: ${d})`),o.titulo=a,o.descricao=n,mudarStatus(e,s,d),salvar(),render(),fecharModal()}
+    function formatarCSV(t){let e=String(t||"");return(e.includes(",")||e.includes('"')||e.includes("\n"))&&(e=e.replace(/"/g,'""'),e=`"${e}"`),e}
+    function exportarParaCSV(){const t=["Código","Título","Descrição","Status"],e=tarefas.map(t=>[formatarCSV(t.codigo),formatarCSV(t.titulo),formatarCSV(t.descricao),formatarCSV(t.status)].join(",")),o=[t.join(","),...e].join("\n"),a=new Blob([o],{type:"text/csv;charset=utf-8;"}),n=document.createElement("a"),s=URL.createObjectURL(a);n.setAttribute("href",s),n.setAttribute("download","tarefas.csv"),n.style.visibility="hidden",document.body.appendChild(n),n.click(),document.body.removeChild(n)}
+    function importarDeCSV(t){const e=t.target.files[0];if(e){const o=new FileReader;o.onload=function(e){const o=e.target.result.split("\n").filter(t=>""!==t.trim());if(o.length<2)return void alert("Arquivo CSV inválido ou vazio.");const a=[];for(let t=1;t<o.length;t++){const e=o[t].split(",");e.length>=4&&a.push({id:Date.now()+t,codigo:e[0].trim(),titulo:e[1].trim(),descricao:e[2].trim(),status:e[3].trim()||"Criado",historico:[{status:e[3].trim()||"Criado",data:new Date().toLocaleString(),anotacao:"Tarefa importada via CSV"}]})}confirm(`Foram encontradas ${a.length} tarefas no arquivo. Deseja importá-las?`)&&(tarefas=[...tarefas,...a],salvar(),render())},o.readAsText(e),t.target.value=""}}
+
+    /**
+     * LÓGICA DE RENDERIZAÇÃO COMPLETAMENTE RESTAURADA
+     * Esta função agora renderiza todos os detalhes em todas as visualizações,
+     * incluindo a coluna "Tempo no Status" e os indicadores de classificação.
+     */
+    function render() {
+      const lista = document.getElementById("lista"); lista.innerHTML = "";
+      const termo = document.getElementById("pesquisa").value.toLowerCase();
+      const filtroStatus = document.getElementById('filtroStatus').value;
+      let filtradas = tarefas.filter(t => t.titulo.toLowerCase().includes(termo) || t.codigo.toLowerCase().includes(termo));
+      if (filtroStatus) { filtradas = filtradas.filter(t => t.status === filtroStatus); }
+      filtradas.sort((a, b) => { const valA = a[sortBy] ? a[sortBy].toLowerCase() : ''; const valB = b[sortBy] ? b[sortBy].toLowerCase() : ''; if (valA < valB) return sortOrder === 'asc' ? -1 : 1; if (valA > valB) return sortOrder === 'asc' ? 1 : -1; return 0; });
+
+      if (viewMode === "cards") {
+        document.getElementById("toggleView").innerText = "➡️ Modo Kanban";
+        let container = document.createElement("div"); container.className = "cards-container";
+        filtradas.forEach(t => {
+          let div = document.createElement("div"); div.className = "task " + t.status;
+          div.innerHTML = `<h3>${t.titulo} <small>(${t.codigo})</small></h3><p>${t.descricao}</p><p class="status">Status: ${t.status} (${calcularTempoNoStatus(t)})</p><select onchange="mudarStatus(${t.id}, this.value, prompt('Anotação (opcional):'))">${getStatusOptions(t.status)}</select><div class="actions"><button onclick="visualizarTarefa(${t.id})">🔍 Visualizar</button><button onclick="abrirEdicao(${t.id})">✏️ Editar</button><button onclick="excluirTarefa(${t.id})">🗑️ Excluir</button></div><div class="log"><b>Última Atividade:</b><br>${t.historico.slice(-1)[0].data} - ${t.historico.slice(-1)[0].anotacao}</div>`;
+          container.appendChild(div);
+        });
+        lista.appendChild(container);
+      } else if (viewMode === "kanban") {
+        document.getElementById("toggleView").innerText = "📋 Modo Lista";
+        const board = document.createElement("div"); board.className = "kanban";
+        statusList.forEach(st => {
+          const col = document.createElement("div"); col.className = "kanban-column"; col.innerHTML = `<h3>${st}</h3>`;
+          filtradas.filter(t => t.status === st).forEach(t => {
+            let card = document.createElement("div"); card.className = "task " + t.status;
+            card.innerHTML = `<h4>${t.titulo} <small>(${t.codigo})</small></h4><p>${t.descricao}</p><p class="status">(${calcularTempoNoStatus(t)})</p><select onchange="mudarStatus(${t.id}, this.value, prompt('Anotação (opcional):'))">${getStatusOptions(t.status)}</select><div class="actions"><button onclick="visualizarTarefa(${t.id})">🔍</button><button onclick="abrirEdicao(${t.id})">✏️</button><button onclick="excluirTarefa(${t.id})">🗑️</button></div>`;
+            col.appendChild(card);
+          });
+          board.appendChild(col);
+        });
+        lista.appendChild(board);
+      } else if (viewMode === "lista") {
+        document.getElementById("toggleView").innerText = "📌 Modo Cards";
+        let table = document.createElement("table");
+        const getArrow = (col) => sortBy === col ? (sortOrder === 'asc' ? '▲' : '▼') : '';
+        table.innerHTML = `<thead><tr><th class="sortable" onclick="classificar('codigo')">Código <span class="sort-arrow">${getArrow('codigo')}</span></th><th class="sortable" onclick="classificar('titulo')">Título <span class="sort-arrow">${getArrow('titulo')}</span></th><th class="sortable" onclick="classificar('status')">Status <span class="sort-arrow">${getArrow('status')}</span></th><th>Tempo no Status</th><th>Ações</th></tr></thead><tbody></tbody>`;
+        const tbody = table.querySelector('tbody');
+        filtradas.forEach(t => {
+            let row = tbody.insertRow();
+            row.innerHTML = `<td>${t.codigo}</td><td>${t.titulo}</td><td class="${t.status}"><select onchange="mudarStatus(${t.id}, this.value, prompt('Anotação (opcional):'))">${getStatusOptions(t.status)}</select></td><td>${calcularTempoNoStatus(t)}</td><td><button onclick="visualizarTarefa(${t.id})">🔍</button><button onclick="abrirEdicao(${t.id})">✏️</button><button onclick="excluirTarefa(${t.id})">🗑️</button></td>`;
+        });
+        lista.appendChild(table);
+      }
+    }
+    
+    // --- FUNÇÕES DO DASHBOARD ---
+    function aplicarFiltrosDashboard() {
+        const ano = document.getElementById('dashboard-ano').value;
+        const mes = document.getElementById('dashboard-mes').value;
+        let tarefasFiltradas = tarefas;
+        if (ano) { tarefasFiltradas = tarefasFiltradas.filter(t => new Date(t.id).getFullYear() == ano); }
+        if (mes) { tarefasFiltradas = tarefasFiltradas.filter(t => new Date(t.id).getMonth() == (mes - 1)); }
+        renderDashboard(tarefasFiltradas);
+    }
+
+    function renderDashboard(tarefasParaDashboard) {
+        const statsContainer = document.getElementById('dashboard-stats'); statsContainer.innerHTML = '';
+        const statusCounts = statusList.reduce((acc, status) => ({ ...acc, [status]: 0 }), {});
+        tarefasParaDashboard.forEach(t => { if (statusCounts.hasOwnProperty(t.status)) { statusCounts[t.status]++; } });
+        statsContainer.innerHTML += `<div class="stat-card"><h3>Total na Seleção</h3><p>${tarefasParaDashboard.length}</p></div>`;
+        for (const status in statusCounts) { statsContainer.innerHTML += `<div class="stat-card"><h3>${status}</h3><p>${statusCounts[status]}</p></div>`; }
+
+        const ctxPie = document.getElementById('statusChart').getContext('2d');
+        if (statusChartInstance) { statusChartInstance.destroy(); }
+        statusChartInstance = new Chart(ctxPie, { type: 'pie', data: { labels: Object.keys(statusCounts), datasets: [{ data: Object.values(statusCounts), backgroundColor: ['#e6f7ff', '#fffbe6', '#fae6ff', '#e6ffed', '#ffe6e6', '#d4edff'], borderColor: ['#66b8ff', '#ffc107', '#a666d5', '#28a745', '#dc3545', '#007bff'], borderWidth: 1 }] }, options: { responsive: true, plugins: { title:{ display: true, text: 'Distribuição por Status' }, legend: { position: 'top' }, datalabels: { formatter: (v,c) => { const d=c.chart.data.datasets[0].data, s=d.reduce((a,b)=>a+b,0); return s > 0 ? (v*100/s).toFixed(1)+'%' : ''; }, color: '#333', font: { weight: 'bold' } } } } });
+
+        // GRÁFICO DE TENDÊNCIA ALTERADO PARA LINHA
+        const anoSelecionado = document.getElementById('dashboard-ano').value;
+        const meses = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+        const trendData = statusList.reduce((acc, status) => ({...acc, [status]: Array(12).fill(0)}), {});
+        const tarefasDoAno = anoSelecionado ? tarefas.filter(t => new Date(t.id).getFullYear() == anoSelecionado) : [];
+        if (anoSelecionado) { tarefasDoAno.forEach(t => { const mesIndex = new Date(t.id).getMonth(); if (trendData[t.status]) { trendData[t.status][mesIndex]++; } }); }
+        
+        const trendDatasets = statusList.map((status, index) => ({
+            label: status,
+            data: trendData[status],
+            borderColor: statusChartInstance.data.datasets[0].borderColor[index],
+            backgroundColor: statusChartInstance.data.datasets[0].borderColor[index] + '33', // Cor da área com transparência
+            fill: false,
+            tension: 0.1
+        }));
+
+        const ctxTrend = document.getElementById('trendChart').getContext('2d');
+        if (trendChartInstance) { trendChartInstance.destroy(); }
+        trendChartInstance = new Chart(ctxTrend, {
+            type: 'line', // Alterado para 'line'
+            data: { labels: meses, datasets: trendDatasets },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: true }, title: { display: true, text: `Fluxo de Tarefas Criadas em ${anoSelecionado || '...'}` }},
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+    }
+
+    function toggleDashboardView() {
+        const managerView = document.getElementById('manager-view');
+        const headerManagerControls = document.getElementById('manager-controls');
+        const dashboardView = document.getElementById('dashboard-view');
+        const btn = document.getElementById('dashboardButton');
+        if (dashboardView.style.display === 'none') {
+            managerView.style.display = 'none';
+            headerManagerControls.style.display = 'none';
+            dashboardView.style.display = 'block';
+            btn.innerText = '📋 Ver Tarefas';
+            popularFiltrosDashboard();
+            aplicarFiltrosDashboard();
+        } else {
+            managerView.style.display = 'block';
+            headerManagerControls.style.display = 'block';
+            dashboardView.style.display = 'none';
+            btn.innerText = '📊 Ver Dashboard';
+        }
+    }
+    
+    function popularFiltrosDashboard() { const t=document.getElementById("dashboard-ano"),e=document.getElementById("dashboard-mes"),o=[...new Set(tarefas.map(t=>new Date(t.id).getFullYear()))].sort((a,b)=>b-a);t.innerHTML='<option value="">Todos os Anos</option>',o.forEach(e=>{t.innerHTML+=`<option value="${e}">${e}</option>`}),e.innerHTML='<option value="">Todos os Meses</option>';for(let t=1;t<=12;t++)e.innerHTML+=`<option value="${t}">${new Date(0,t-1).toLocaleString("pt-BR",{month:"long"})}</option>`}
+    function popularFiltroStatus(){const t=document.getElementById("filtroStatus");statusList.forEach(e=>{const o=document.createElement("option");o.value=e,o.innerText=e,t.appendChild(o)})}
+    function toggleTheme(){document.body.classList.toggle("dark");const t=document.getElementById("toggleTheme");t.innerText=document.body.classList.contains("dark")?"☀️ Modo Claro":"🌙 Modo Escuro"}
+    function toggleView(){"cards"===viewMode?viewMode="kanban":"kanban"===viewMode?viewMode="lista":viewMode="cards";const t=document.getElementById("toggleView");"cards"===viewMode?t.innerText="➡️ Modo Kanban":"kanban"===viewMode?t.innerText="📋 Modo Lista":t.innerText="📌 Modo Cards",render()}
+    
+    document.addEventListener('DOMContentLoaded', () => { popularFiltroStatus(); viewMode = 'cards'; render(); });
+  </script>
+</body>
+</html>
